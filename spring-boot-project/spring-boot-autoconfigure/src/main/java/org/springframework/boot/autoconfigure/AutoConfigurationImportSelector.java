@@ -121,13 +121,27 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
 		}
+
+		// 获取注解属性值
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
+
+		// 获取候选配置信息
 		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+
+		// 删除重复配置
 		configurations = removeDuplicates(configurations);
+
+		// 获取 exclude 属性并校验
 		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
 		checkExcludedClasses(configurations, exclusions);
+
+		// 配置中删除 exclude 的属性值
 		configurations.removeAll(exclusions);
+
+		// 过滤
 		configurations = getConfigurationClassFilter().filter(configurations);
+
+		// 触发自动配置事件并返回
 		fireAutoConfigurationImportEvents(configurations, exclusions);
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
@@ -438,8 +452,12 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 							AutoConfigurationImportSelector.class.getSimpleName(),
 							deferredImportSelector.getClass().getName()));
 			AutoConfigurationEntry autoConfigurationEntry = ((AutoConfigurationImportSelector) deferredImportSelector)
+
+					// 配置元数据
 				.getAutoConfigurationEntry(annotationMetadata);
 			this.autoConfigurationEntries.add(autoConfigurationEntry);
+
+			//
 			for (String importClassName : autoConfigurationEntry.getConfigurations()) {
 				this.entries.putIfAbsent(importClassName, annotationMetadata);
 			}
@@ -467,6 +485,8 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 		private AutoConfigurationMetadata getAutoConfigurationMetadata() {
 			if (this.autoConfigurationMetadata == null) {
+
+				// 加载配置信息
 				this.autoConfigurationMetadata = AutoConfigurationMetadataLoader.loadMetadata(this.beanClassLoader);
 			}
 			return this.autoConfigurationMetadata;
