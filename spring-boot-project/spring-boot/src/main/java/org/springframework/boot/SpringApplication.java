@@ -256,16 +256,28 @@ public class SpringApplication {
 	 * @see #run(Class, String[])
 	 * @see #setSources(Set)
 	 */
+
+	// 创建 SpringApplication 的入口
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
+
+		// 添加源，将配置类添加到源列表，
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+
+		// 设置 web 环境
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+
+		// 设置初始化器，从 spring.factories 中加载
 		this.bootstrapRegistryInitializers = new ArrayList<>(
 				getSpringFactoriesInstances(BootstrapRegistryInitializer.class));
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
+
+		// 设置监听器，从 spring.factories 中加载
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+
+		// 确定应用主类，是 SpringBoot 的入口点
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
@@ -290,27 +302,54 @@ public class SpringApplication {
 	 * @param args the application arguments (usually passed from a Java main method)
 	 * @return a running {@link ApplicationContext}
 	 */
+
+	// run 方法入口
 	public ConfigurableApplicationContext run(String... args) {
+
+		// 记时相关
 		long startTime = System.nanoTime();
+
 		DefaultBootstrapContext bootstrapContext = createBootstrapContext();
 		ConfigurableApplicationContext context = null;
 		configureHeadlessProperty();
+
+		// 获取监听器并启动
 		SpringApplicationRunListeners listeners = getRunListeners(args);
 		listeners.starting(bootstrapContext, this.mainApplicationClass);
+
 		try {
+
+			// application 启动参数列表
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+
+			// 准备环境
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
+
+			// 配置忽略的 bean 信息
 			configureIgnoreBeanInfo(environment);
+
+			// 创建打印器
 			Banner printedBanner = printBanner(environment);
+
+			// 创建应用上下文
 			context = createApplicationContext();
 			context.setApplicationStartup(this.applicationStartup);
+
+			// 准备上下文，装配 bean
 			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+
+			// 上下文刷新
 			refreshContext(context);
+
+			// 上下文刷新的后置处理
 			afterRefresh(context, applicationArguments);
+
 			Duration timeTakenToStartup = Duration.ofNanos(System.nanoTime() - startTime);
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), timeTakenToStartup);
 			}
+
+			// 触发监听器事件
 			listeners.started(context, timeTakenToStartup);
 			callRunners(context, applicationArguments);
 		}
@@ -326,6 +365,8 @@ public class SpringApplication {
 			handleRunFailure(context, ex, null);
 			throw new IllegalStateException(ex);
 		}
+
+		// 返回上下文
 		return context;
 	}
 
@@ -338,6 +379,8 @@ public class SpringApplication {
 	private ConfigurableEnvironment prepareEnvironment(SpringApplicationRunListeners listeners,
 			DefaultBootstrapContext bootstrapContext, ApplicationArguments applicationArguments) {
 		// Create and configure the environment
+
+		// 得到一个环境，并做一些配置
 		ConfigurableEnvironment environment = getOrCreateEnvironment();
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
@@ -369,9 +412,17 @@ public class SpringApplication {
 	private void prepareContext(DefaultBootstrapContext bootstrapContext, ConfigurableApplicationContext context,
 			ConfigurableEnvironment environment, SpringApplicationRunListeners listeners,
 			ApplicationArguments applicationArguments, Banner printedBanner) {
+
+		// 在上下文中设置环境
 		context.setEnvironment(environment);
+
+		// 做一些上下文处理
 		postProcessApplicationContext(context);
+
+		// 初始化
 		applyInitializers(context);
+
+		// 将监听器中放入上下文
 		listeners.contextPrepared(context);
 		bootstrapContext.close(context);
 		if (this.logStartupInfo) {
@@ -380,6 +431,8 @@ public class SpringApplication {
 		}
 		// Add boot specific singleton beans
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+
+		// 单例对象注册
 		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
 		if (printedBanner != null) {
 			beanFactory.registerSingleton("springBootBanner", printedBanner);
@@ -398,7 +451,11 @@ public class SpringApplication {
 		// Load the sources
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
+
+		// 加载上下文
 		load(context, sources.toArray(new Object[0]));
+
+		// 监听器做加载上下文操作
 		listeners.contextLoaded(context);
 	}
 
@@ -416,6 +473,8 @@ public class SpringApplication {
 
 	private SpringApplicationRunListeners getRunListeners(String[] args) {
 		Class<?>[] types = new Class<?>[] { SpringApplication.class, String[].class };
+
+		// 获取 SpringFactory 实例对象
 		return new SpringApplicationRunListeners(logger,
 				getSpringFactoriesInstances(SpringApplicationRunListener.class, types, this, args),
 				this.applicationStartup);
@@ -428,8 +487,14 @@ public class SpringApplication {
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
 		ClassLoader classLoader = getClassLoader();
 		// Use names and ensure unique to protect against duplicates
+
+		// 读取 spring.factories
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
+
+		// 创建 SpringFactory 实例
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
+
+		// 排序并返回
 		AnnotationAwareOrderComparator.sort(instances);
 		return instances;
 	}
@@ -440,7 +505,11 @@ public class SpringApplication {
 		List<T> instances = new ArrayList<>(names.size());
 		for (String name : names) {
 			try {
+
+				// 通过名字创建类的 class 对象
 				Class<?> instanceClass = ClassUtils.forName(name, classLoader);
+
+				// 创建具体实例，并加入到实例表中
 				Assert.isAssignable(type, instanceClass);
 				Constructor<?> constructor = instanceClass.getDeclaredConstructor(parameterTypes);
 				T instance = (T) BeanUtils.instantiateClass(constructor, args);
